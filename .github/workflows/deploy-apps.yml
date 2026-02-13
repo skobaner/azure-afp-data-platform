@@ -1,0 +1,81 @@
+name: Deploy API + Function
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["main"]
+    paths:
+      - "api/**"
+      - "pipeline/**"
+      - ".github/workflows/deploy-apps.yml"
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  TF_IN_AUTOMATION: "true"
+  ARM_USE_OIDC: "true"
+  ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+  ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init (read outputs)
+        working-directory: infra/terraform
+        run: |
+          terraform init \
+            -backend-config="resource_group_name=${{ secrets.TF_STATE_RESOURCE_GROUP }}" \
+            -backend-config="storage_account_name=${{ secrets.TF_STATE_STORAGE_ACCOUNT }}" \
+            -backend-config="container_name=${{ secrets.TF_STATE_CONTAINER }}" \
+            -backend-config="key=${{ secrets.TF_STATE_KEY }}"
+
+      - name: Resolve target resources from Terraform outputs
+        id: tfout
+        working-directory: infra/terraform
+        run: |
+          echo "resource_group=$(terraform output -raw resource_group_name)" >> "$GITHUB_OUTPUT"
+          echo "api_app=$(terraform output -raw api_app_name)" >> "$GITHUB_OUTPUT"
+          echo "function_app=$(terraform output -raw function_app_name)" >> "$GITHUB_OUTPUT"
+
+      - name: Build API zip
+        run: |
+          cd api
+          zip -r ../api.zip . -x "*.venv*" "*__pycache__*"
+
+      - name: Deploy API zip
+        run: |
+          az webapp deploy \
+            --resource-group "${{ steps.tfout.outputs.resource_group }}" \
+            --name "${{ steps.tfout.outputs.api_app }}" \
+            --src-path api.zip \
+            --type zip
+
+      - name: Build Function zip
+        run: |
+          cd pipeline
+          zip -r ../pipeline.zip . -x "*__pycache__*"
+
+      - name: Deploy Function zip
+        run: |
+          az functionapp deployment source config-zip \
+            --resource-group "${{ steps.tfout.outputs.resource_group }}" \
+            --name "${{ steps.tfout.outputs.function_app }}" \
+            --src pipeline.zip

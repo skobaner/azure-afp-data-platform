@@ -1,0 +1,8 @@
+project_name       = "csvplatform"
+location           = "eastus"
+environment        = "dev"
+sql_admin_username = "sqladminuser"
+sql_admin_password = "ReplaceWithStrongPassword123!"
+
+# Optional: add your public IP to query SQL from local machine
+allowed_ip_address = ""

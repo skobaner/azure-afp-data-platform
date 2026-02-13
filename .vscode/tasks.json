@@ -1,0 +1,37 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "terraform:init",
+      "type": "shell",
+      "command": "terraform init",
+      "options": {
+        "cwd": "${workspaceFolder}/infra/terraform"
+      }
+    },
+    {
+      "label": "terraform:apply",
+      "type": "shell",
+      "command": "terraform apply",
+      "options": {
+        "cwd": "${workspaceFolder}/infra/terraform"
+      }
+    },
+    {
+      "label": "api:run-local",
+      "type": "shell",
+      "command": "uvicorn app.main:app --reload --host 0.0.0.0 --port 8000",
+      "options": {
+        "cwd": "${workspaceFolder}/api"
+      }
+    },
+    {
+      "label": "function:run-local",
+      "type": "shell",
+      "command": "func start",
+      "options": {
+        "cwd": "${workspaceFolder}/pipeline"
+      }
+    }
+  ]
+}

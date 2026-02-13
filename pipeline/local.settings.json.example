@@ -1,0 +1,12 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "python",
+    "BLOB_STORAGE_CONNECTION_STRING": "DefaultEndpointsProtocol=https;AccountName=...;AccountKey=...;EndpointSuffix=core.windows.net",
+    "SQL_HOST": "sql-xxxx.database.windows.net",
+    "SQL_DATABASE": "sqldb-dev",
+    "SQL_USER": "sqladminuser",
+    "SQL_PASSWORD": "ReplaceWithStrongPassword123!"
+  }
+}
