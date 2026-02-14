@@ -69,11 +69,11 @@ resource "azurerm_mssql_firewall_rule" "azure_services" {
 }
 
 resource "azurerm_mssql_firewall_rule" "local_debug" {
-  count            = var.allowed_ip_address != "" ? 1 : 0
+  count            = trimspace(var.allowed_ip_address) != "" ? 1 : 0
   name             = "AllowLocalClient"
   server_id        = azurerm_mssql_server.main.id
-  start_ip_address = var.allowed_ip_address
-  end_ip_address   = var.allowed_ip_address
+  start_ip_address = trimspace(var.allowed_ip_address)
+  end_ip_address   = trimspace(var.allowed_ip_address)
 }
 
 resource "azurerm_mssql_database" "main" {
