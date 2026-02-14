@@ -93,6 +93,8 @@ jobs:
 
       - name: Build Function zip
         run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r pipeline/requirements.txt --target pipeline/.python_packages/lib/site-packages
           cd pipeline
           zip -r ../pipeline.zip . -x "*__pycache__*"
 
@@ -102,7 +104,6 @@ jobs:
             --resource-group "${{ steps.tfout.outputs.resource_group }}" \
             --name "${{ steps.tfout.outputs.function_app }}" \
             --src pipeline.zip \
-            --build-remote true \
             --timeout 1800
 
       - name: Verify Function Discovery

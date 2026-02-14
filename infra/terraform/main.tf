@@ -143,10 +143,8 @@ resource "azurerm_linux_function_app" "pipeline" {
   }
 
   app_settings = {
-    FUNCTIONS_WORKER_RUNTIME       = "python"
-    FUNCTIONS_EXTENSION_VERSION    = "~4"
-    SCM_DO_BUILD_DURING_DEPLOYMENT = "true"
-    ENABLE_ORYX_BUILD              = "true"
+    FUNCTIONS_WORKER_RUNTIME    = "python"
+    FUNCTIONS_EXTENSION_VERSION = "~4"
 
     BLOB_STORAGE_CONNECTION_STRING = azurerm_storage_account.main.primary_connection_string
     BLOB_INPUT_CONTAINER           = azurerm_storage_container.input.name
