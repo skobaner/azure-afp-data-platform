@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from uuid import uuid4
 
 import pymssql
+from azure.core.exceptions import AzureError, ResourceNotFoundError
 from azure.storage.blob import BlobServiceClient
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 
@@ -22,6 +23,17 @@ def _required_env(name: str) -> str:
 def get_blob_client() -> BlobServiceClient:
   connection_string = _required_env("BLOB_CONNECTION_STRING")
   return BlobServiceClient.from_connection_string(connection_string)
+
+
+def ensure_blob_container_exists(blob_service: BlobServiceClient, container_name: str) -> None:
+  container_client = blob_service.get_container_client(container_name)
+  try:
+    if not container_client.exists():
+      container_client.create_container()
+  except ResourceNotFoundError:
+    container_client.create_container()
+  except AzureError as exc:
+    raise HTTPException(status_code=500, detail="Unable to access blob storage container") from exc
 
 
 def get_sql_connection():
@@ -84,8 +96,12 @@ async def upload_csv(file: UploadFile = File(...)):
   container_name = _required_env("BLOB_CONTAINER_NAME")
   blob_name = f"raw/{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}-{uuid4()}-{file.filename}"
 
+  ensure_blob_container_exists(blob_service, container_name)
   container_client = blob_service.get_container_client(container_name)
-  container_client.upload_blob(name=blob_name, data=content, overwrite=False)
+  try:
+    container_client.upload_blob(name=blob_name, data=content, overwrite=False)
+  except AzureError as exc:
+    raise HTTPException(status_code=500, detail="Failed to upload file to blob storage") from exc
 
   return {
     "message": "File uploaded successfully",
