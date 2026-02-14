@@ -74,7 +74,7 @@ jobs:
           success=0
           for attempt in {1..8}; do
             set +e
-            output=$(az webapp deployment source config-zip \
+            output=$(timeout 600 az webapp deployment source config-zip \
               --resource-group "${{ steps.tfout.outputs.resource_group }}" \
               --name "${{ steps.tfout.outputs.api_app }}" \
               --src api.zip 2>&1)
@@ -86,7 +86,7 @@ jobs:
               success=1
               break
             fi
-            if echo "$output" | grep -Eq "(Status Code: (400|409|504)|Another deployment is in progress)"; then
+            if [ "$exit_code" -eq 124 ] || echo "$output" | grep -Eq "(Status Code: (400|409|504)|Another deployment is in progress)"; then
               echo "Transient Kudu deployment collision/timeout (attempt $attempt/8). Retrying..."
               sleep 45
               continue
