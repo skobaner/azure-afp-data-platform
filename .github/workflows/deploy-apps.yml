@@ -79,3 +79,20 @@ jobs:
             --resource-group "${{ steps.tfout.outputs.resource_group }}" \
             --name "${{ steps.tfout.outputs.function_app }}" \
             --src pipeline.zip
+
+      - name: Verify Function Discovery
+        run: |
+          for attempt in {1..12}; do
+            count=$(az functionapp function list \
+              --resource-group "${{ steps.tfout.outputs.resource_group }}" \
+              --name "${{ steps.tfout.outputs.function_app }}" \
+              --query "length(@)" -o tsv)
+            if [ "$count" -gt 0 ]; then
+              echo "Discovered $count function(s)"
+              exit 0
+            fi
+            echo "No functions discovered yet (attempt $attempt/12). Waiting..."
+            sleep 10
+          done
+          echo "Function discovery failed after deployment."
+          exit 1
