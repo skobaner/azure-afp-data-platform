@@ -135,6 +135,8 @@ resource "azurerm_linux_function_app" "pipeline" {
   service_plan_id            = azurerm_service_plan.main.id
 
   site_config {
+    always_on = true
+
     application_stack {
       python_version = "3.11"
     }
@@ -143,7 +145,6 @@ resource "azurerm_linux_function_app" "pipeline" {
   app_settings = {
     FUNCTIONS_WORKER_RUNTIME       = "python"
     FUNCTIONS_EXTENSION_VERSION    = "~4"
-    AzureWebJobsFeatureFlags       = "EnableWorkerIndexing"
     SCM_DO_BUILD_DURING_DEPLOYMENT = "true"
     ENABLE_ORYX_BUILD              = "true"
 

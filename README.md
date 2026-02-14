@@ -12,8 +12,8 @@ This project gives you a full starting point for your requirement:
 
 1. `POST /upload-csv` (FastAPI) uploads a `.csv` file to Blob container `input-data`.
 2. Blob trigger (Azure Function) runs when a new file appears.
-3. Function normalizes each CSV row (trim + uppercase + add `processed_utc`) and writes both raw + normalized payloads into SQL table `dbo.processed_rows`.
-4. `GET /records` (FastAPI) reads rows from SQL, including processing status/error.
+3. Function evaluates each claim row against remaining PO + category balances and writes certification results to SQL.
+4. `GET /records` (FastAPI) reads certified rows from SQL.
 
 ## Project structure
 
@@ -97,7 +97,17 @@ az functionapp deployment source config-zip \
 
 Get API URL from Terraform output (`api_app_url`):
 
-### Upload CSV
+### Seed reference limits (one-time or updates)
+
+```bash
+curl -X POST "https://<api-host>/seed/po-limits" \
+  -F "file=@/path/to/po_limits.csv"
+
+curl -X POST "https://<api-host>/seed/category-limits" \
+  -F "file=@/path/to/category_limits.csv"
+```
+
+### Upload claim CSV
 
 ```bash
 curl -X POST "https://<api-host>/upload-csv" \
@@ -125,4 +135,4 @@ Setup instructions:
 
 - SQL table contract is in `sql/schema.sql` and is auto-created/updated by API + Function startup logic.
 - For production, use Key Vault + Managed Identity instead of storing SQL password in app settings.
-- Current transformation logic is in `pipeline/function_app.py` (`normalize_row`).
+- Function logic is in `pipeline/ProcessApplicationPayments/__init__.py`.

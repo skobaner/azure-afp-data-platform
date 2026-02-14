@@ -1,0 +1,9 @@
+project,cost_category,cost_amount,PO
+Project Apollo,CAT-A,12000,PO-100
+Project Borealis,CAT-B,4000,PO-100
+Project Cygnus,CAT-C,3000,PO-300
+Project Delta,CAT-D,7000,PO-300
+Project Echo,CAT-A,25000,PO-400
+Project Foxtrot,CAT-A,15000,PO-200
+Project Gemini,CAT-D,4000,PO-100
+Project Helios,CAT-D,3000,PO-100

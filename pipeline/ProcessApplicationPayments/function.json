@@ -1,0 +1,12 @@
+{
+  "scriptFile": "__init__.py",
+  "bindings": [
+    {
+      "name": "input_blob",
+      "type": "blobTrigger",
+      "direction": "in",
+      "path": "input-data/{name}",
+      "connection": "BLOB_STORAGE_CONNECTION_STRING"
+    }
+  ]
+}

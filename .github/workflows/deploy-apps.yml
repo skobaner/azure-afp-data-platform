@@ -84,7 +84,7 @@ jobs:
 
       - name: Verify Function Discovery
         run: |
-          for attempt in {1..12}; do
+          for attempt in {1..30}; do
             count=$(az functionapp function list \
               --resource-group "${{ steps.tfout.outputs.resource_group }}" \
               --name "${{ steps.tfout.outputs.function_app }}" \
@@ -93,7 +93,7 @@ jobs:
               echo "Discovered $count function(s)"
               exit 0
             fi
-            echo "No functions discovered yet (attempt $attempt/12). Waiting..."
+            echo "No functions discovered yet (attempt $attempt/30). Waiting..."
             sleep 10
           done
           echo "Function discovery failed after deployment."

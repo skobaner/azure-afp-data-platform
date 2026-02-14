@@ -1,0 +1,9 @@
+project,cost_category,cost_amount,PO,certification,certified_cost
+Project Apollo,CAT-A,12000,PO-100,authorized,12000
+Project Borealis,CAT-B,4000,PO-100,partially_authorized,1000
+Project Cygnus,CAT-C,3000,PO-300,deauthorized,0
+Project Delta,CAT-D,7000,PO-300,partially_authorized,5000
+Project Echo,CAT-A,25000,PO-400,partially_authorized,20000
+Project Foxtrot,CAT-A,15000,PO-200,deauthorized,0
+Project Gemini,CAT-D,4000,PO-100,authorized,4000
+Project Helios,CAT-D,3000,PO-100,partially_authorized,1000
