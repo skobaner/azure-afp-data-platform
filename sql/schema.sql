@@ -38,3 +38,19 @@ BEGIN
     CONSTRAINT UQ_app_payments_source_row UNIQUE (source_blob, row_number)
   );
 END;
+
+IF OBJECT_ID(N'dbo.application_payments_raw', N'U') IS NULL
+BEGIN
+  CREATE TABLE dbo.application_payments_raw (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    source_blob NVARCHAR(512) NOT NULL,
+    row_number INT NOT NULL,
+    project NVARCHAR(255) NULL,
+    cost_category NVARCHAR(100) NULL,
+    po NVARCHAR(100) NULL,
+    cost_amount DECIMAL(18,2) NULL,
+    raw_payload NVARCHAR(MAX) NOT NULL,
+    ingested_at DATETIME2(3) NOT NULL CONSTRAINT DF_app_payments_raw_ingested_at DEFAULT SYSUTCDATETIME(),
+    CONSTRAINT UQ_app_payments_raw_source_row UNIQUE (source_blob, row_number)
+  );
+END;

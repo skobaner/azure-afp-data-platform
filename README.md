@@ -7,13 +7,15 @@ This project gives you a full starting point for your requirement:
 - Pipeline that reads CSV from Blob, manipulates rows in Python, and writes to SQL
 - API #1 to upload CSV files to Blob
 - API #2 to view rows from Azure SQL
+- Web UI for uploads + table views
 
 ## Architecture
 
 1. `POST /upload-csv` (FastAPI) uploads a `.csv` file to Blob container `input-data`.
 2. Blob trigger (Azure Function) runs when a new file appears.
-3. Function evaluates each claim row against remaining PO + category balances and writes certification results to SQL.
-4. `GET /records` (FastAPI) reads certified rows from SQL.
+3. Function persists raw input rows, evaluates each claim row against remaining PO + category balances, and writes certification results to SQL.
+4. FastAPI exposes `GET /raw-inputs`, `GET /po-limits`, `GET /category-limits`, and `GET /records`.
+5. UI at `/` calls these endpoints for browser-based operations.
 
 ## Project structure
 
@@ -118,6 +120,20 @@ curl -X POST "https://<api-host>/upload-csv" \
 
 ```bash
 curl "https://<api-host>/records?limit=50"
+```
+
+### View raw input rows captured by function
+
+```bash
+curl "https://<api-host>/raw-inputs?limit=50"
+```
+
+### Use the web UI
+
+Open:
+
+```text
+https://<api-host>/
 ```
 
 ## CI/CD (GitHub Actions)

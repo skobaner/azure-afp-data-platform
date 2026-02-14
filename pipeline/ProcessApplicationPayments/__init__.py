@@ -49,6 +49,22 @@ BEGIN
     CONSTRAINT UQ_app_payments_source_row UNIQUE (source_blob, row_number)
   );
 END;
+
+IF OBJECT_ID(N'dbo.application_payments_raw', N'U') IS NULL
+BEGIN
+  CREATE TABLE dbo.application_payments_raw (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    source_blob NVARCHAR(512) NOT NULL,
+    row_number INT NOT NULL,
+    project NVARCHAR(255) NULL,
+    cost_category NVARCHAR(100) NULL,
+    po NVARCHAR(100) NULL,
+    cost_amount DECIMAL(18,2) NULL,
+    raw_payload NVARCHAR(MAX) NOT NULL,
+    ingested_at DATETIME2(3) NOT NULL CONSTRAINT DF_app_payments_raw_ingested_at DEFAULT SYSUTCDATETIME(),
+    CONSTRAINT UQ_app_payments_raw_source_row UNIQUE (source_blob, row_number)
+  );
+END;
 """
 
 REQUIRED_COLUMNS = ("project", "cost_category", "cost_amount", "PO")
@@ -157,12 +173,77 @@ def _insert_processed_row(
   )
 
 
+def _upsert_raw_row(
+  cursor,
+  *,
+  source_blob: str,
+  row_number: int,
+  project: str | None,
+  cost_category: str | None,
+  po: str | None,
+  cost_amount: Decimal | None,
+  raw_payload: dict,
+) -> None:
+  cursor.execute(
+    """
+    MERGE dbo.application_payments_raw AS target
+    USING (SELECT %s AS source_blob, %s AS row_number) AS src
+    ON target.source_blob = src.source_blob AND target.row_number = src.row_number
+    WHEN MATCHED THEN
+      UPDATE SET
+        project = %s,
+        cost_category = %s,
+        po = %s,
+        cost_amount = %s,
+        raw_payload = %s,
+        ingested_at = SYSUTCDATETIME()
+    WHEN NOT MATCHED THEN
+      INSERT (source_blob, row_number, project, cost_category, po, cost_amount, raw_payload, ingested_at)
+      VALUES (%s, %s, %s, %s, %s, %s, %s, SYSUTCDATETIME());
+    """,
+    (
+      source_blob,
+      row_number,
+      project,
+      cost_category,
+      po,
+      float(cost_amount) if cost_amount is not None else None,
+      json.dumps(raw_payload),
+      source_blob,
+      row_number,
+      project,
+      cost_category,
+      po,
+      float(cost_amount) if cost_amount is not None else None,
+      json.dumps(raw_payload),
+    ),
+  )
+
+
 def _process_row(cursor, source_blob: str, row_number: int, row: dict) -> None:
   project = (row.get("project") or "").strip()
   cost_category = (row.get("cost_category") or "").strip()
   po = (row.get("PO") or "").strip()
   raw_cost_amount = row.get("cost_amount")
   raw_payload = dict(row)
+  raw_cost_amount_decimal: Decimal | None = None
+
+  try:
+    if raw_cost_amount is not None and str(raw_cost_amount).strip() != "":
+      raw_cost_amount_decimal = _to_decimal(raw_cost_amount)
+  except ValueError:
+    raw_cost_amount_decimal = None
+
+  _upsert_raw_row(
+    cursor,
+    source_blob=source_blob,
+    row_number=row_number,
+    project=project or None,
+    cost_category=cost_category or None,
+    po=po or None,
+    cost_amount=raw_cost_amount_decimal,
+    raw_payload=raw_payload,
+  )
 
   if not project or not cost_category or not po:
     _insert_processed_row(

@@ -1,6 +1,7 @@
 import csv
 import io
 import os
+from pathlib import Path
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from uuid import uuid4
@@ -8,8 +9,11 @@ from uuid import uuid4
 from azure.core.exceptions import AzureError, ResourceNotFoundError
 from azure.storage.blob import BlobServiceClient
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
+from fastapi.responses import FileResponse
 
-app = FastAPI(title="AFP Data Platform API", version="1.1.0")
+app = FastAPI(title="AFP Data Platform API", version="1.2.0")
+APP_ROOT = Path(__file__).resolve().parent
+STATIC_DIR = APP_ROOT / "static"
 
 SCHEMA_DDL = """
 IF OBJECT_ID(N'dbo.po_limits', N'U') IS NULL
@@ -50,6 +54,22 @@ BEGIN
     raw_payload NVARCHAR(MAX) NOT NULL,
     processed_at DATETIME2(3) NOT NULL CONSTRAINT DF_app_payments_processed_at DEFAULT SYSUTCDATETIME(),
     CONSTRAINT UQ_app_payments_source_row UNIQUE (source_blob, row_number)
+  );
+END;
+
+IF OBJECT_ID(N'dbo.application_payments_raw', N'U') IS NULL
+BEGIN
+  CREATE TABLE dbo.application_payments_raw (
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    source_blob NVARCHAR(512) NOT NULL,
+    row_number INT NOT NULL,
+    project NVARCHAR(255) NULL,
+    cost_category NVARCHAR(100) NULL,
+    po NVARCHAR(100) NULL,
+    cost_amount DECIMAL(18,2) NULL,
+    raw_payload NVARCHAR(MAX) NOT NULL,
+    ingested_at DATETIME2(3) NOT NULL CONSTRAINT DF_app_payments_raw_ingested_at DEFAULT SYSUTCDATETIME(),
+    CONSTRAINT UQ_app_payments_raw_source_row UNIQUE (source_blob, row_number)
   );
 END;
 """
@@ -107,6 +127,14 @@ def ensure_schema_exists() -> None:
 @app.get("/health")
 def health():
   return {"status": "ok", "timestamp_utc": datetime.now(timezone.utc).isoformat()}
+
+
+@app.get("/", include_in_schema=False)
+def ui_home():
+  index_file = STATIC_DIR / "index.html"
+  if not index_file.exists():
+    raise HTTPException(status_code=500, detail="Frontend UI not found")
+  return FileResponse(index_file)
 
 
 @app.post("/upload-csv")
@@ -282,3 +310,21 @@ def get_records(
     row["raw_payload"] = row.get("raw_payload")
     normalized.append(row)
   return {"count": len(normalized), "records": normalized}
+
+
+@app.get("/raw-inputs")
+def get_raw_inputs(limit: int = Query(default=200, ge=1, le=1000)):
+  ensure_schema_exists()
+  with get_sql_connection() as conn:
+    with conn.cursor() as cursor:
+      cursor.execute(
+        """
+        SELECT TOP (%s)
+          id, source_blob, row_number, project, cost_category, po, cost_amount, raw_payload, ingested_at
+        FROM dbo.application_payments_raw
+        ORDER BY id DESC
+        """,
+        (limit,),
+      )
+      rows = cursor.fetchall()
+  return {"count": len(rows), "records": rows}

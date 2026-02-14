@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AFP Data Platform</title>
+  <style>
+    :root {
+      --bg: #f4f7f5;
+      --panel: #ffffff;
+      --text: #112015;
+      --muted: #4f6b5a;
+      --accent: #0f766e;
+      --accent-2: #134e4a;
+      --line: #d8e3dc;
+      --ok: #166534;
+      --err: #b91c1c;
+      --warn: #92400e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Avenir Next", "Segoe UI", sans-serif;
+      color: var(--text);
+      background: radial-gradient(circle at 15% 20%, #e6f4ed 0%, var(--bg) 45%), var(--bg);
+    }
+    .wrap { max-width: 1280px; margin: 0 auto; padding: 28px 18px 40px; }
+    h1 { margin: 0 0 6px; font-size: 32px; letter-spacing: -0.02em; }
+    .sub { color: var(--muted); margin-bottom: 22px; }
+    .grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+      box-shadow: 0 2px 10px rgba(10, 31, 20, 0.04);
+    }
+    .card h2 { margin: 0 0 10px; font-size: 16px; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    input[type="file"] {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 8px;
+      background: #fff;
+    }
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 9px 12px;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button:hover { background: var(--accent-2); }
+    .msg { margin-top: 8px; min-height: 18px; font-size: 13px; }
+    .ok { color: var(--ok); }
+    .err { color: var(--err); }
+    .warn { color: var(--warn); }
+    .tables { margin-top: 18px; display: grid; gap: 14px; }
+    .table-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .table-wrap { overflow: auto; border: 1px solid var(--line); border-radius: 10px; }
+    table { width: 100%; border-collapse: collapse; min-width: 700px; background: #fff; }
+    th, td { padding: 8px 10px; border-bottom: 1px solid #edf2ee; text-align: left; font-size: 12px; vertical-align: top; }
+    th { position: sticky; top: 0; background: #f7fbf8; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: #32513f; }
+    code { font-family: "SF Mono", ui-monospace, Menlo, monospace; font-size: 11px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>AFP Data Platform</h1>
+    <div class="sub">Upload CSVs and inspect raw input, limits, and processed certification output.</div>
+
+    <div class="grid">
+      <div class="card">
+        <h2>Upload Raw Input</h2>
+        <form id="raw-form">
+          <input id="raw-file" type="file" accept=".csv" required />
+          <div class="row" style="margin-top:8px;">
+            <button type="submit">Upload Raw CSV</button>
+          </div>
+          <div id="raw-msg" class="msg"></div>
+        </form>
+      </div>
+
+      <div class="card">
+        <h2>Seed PO Limits</h2>
+        <form id="po-form">
+          <input id="po-file" type="file" accept=".csv" required />
+          <div class="row" style="margin-top:8px;">
+            <button type="submit">Upload PO CSV</button>
+          </div>
+          <div id="po-msg" class="msg"></div>
+        </form>
+      </div>
+
+      <div class="card">
+        <h2>Seed Category Limits</h2>
+        <form id="cat-form">
+          <input id="cat-file" type="file" accept=".csv" required />
+          <div class="row" style="margin-top:8px;">
+            <button type="submit">Upload Category CSV</button>
+          </div>
+          <div id="cat-msg" class="msg"></div>
+        </form>
+      </div>
+    </div>
+
+    <div class="tables">
+      <section class="card">
+        <div class="table-head">
+          <h2>Raw Input Rows</h2>
+          <button onclick="refreshRaw()">Refresh</button>
+        </div>
+        <div class="table-wrap"><table id="raw-table"></table></div>
+      </section>
+
+      <section class="card">
+        <div class="table-head">
+          <h2>PO Limits</h2>
+          <button onclick="refreshPO()">Refresh</button>
+        </div>
+        <div class="table-wrap"><table id="po-table"></table></div>
+      </section>
+
+      <section class="card">
+        <div class="table-head">
+          <h2>Category Limits</h2>
+          <button onclick="refreshCategory()">Refresh</button>
+        </div>
+        <div class="table-wrap"><table id="cat-table"></table></div>
+      </section>
+
+      <section class="card">
+        <div class="table-head">
+          <h2>Processed Payments</h2>
+          <button onclick="refreshProcessed()">Refresh</button>
+        </div>
+        <div class="table-wrap"><table id="proc-table"></table></div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    async function postFile(url, fileInput, msgEl) {
+      msgEl.textContent = "";
+      msgEl.className = "msg";
+      const file = fileInput.files[0];
+      if (!file) {
+        msgEl.textContent = "Select a CSV file first.";
+        msgEl.classList.add("warn");
+        return;
+      }
+      const body = new FormData();
+      body.append("file", file);
+      try {
+        const res = await fetch(url, { method: "POST", body });
+        const payload = await res.json();
+        if (!res.ok) {
+          throw new Error(payload.detail || JSON.stringify(payload));
+        }
+        msgEl.textContent = JSON.stringify(payload);
+        msgEl.classList.add("ok");
+        await refreshAll();
+      } catch (err) {
+        msgEl.textContent = String(err.message || err);
+        msgEl.classList.add("err");
+      }
+    }
+
+    function renderTable(tableId, rows) {
+      const table = document.getElementById(tableId);
+      if (!rows || rows.length === 0) {
+        table.innerHTML = "<thead><tr><th>No data</th></tr></thead><tbody><tr><td>Empty</td></tr></tbody>";
+        return;
+      }
+      const cols = Object.keys(rows[0]);
+      const head = `<thead><tr>${cols.map(c => `<th>${c}</th>`).join("")}</tr></thead>`;
+      const body = `<tbody>${rows.map(r => `<tr>${cols.map(c => `<td>${formatCell(r[c])}</td>`).join("")}</tr>`).join("")}</tbody>`;
+      table.innerHTML = head + body;
+    }
+
+    function formatCell(val) {
+      if (val === null || val === undefined) return "";
+      if (typeof val === "object") return `<code>${escapeHtml(JSON.stringify(val))}</code>`;
+      const s = String(val);
+      return escapeHtml(s.length > 500 ? s.slice(0, 500) + "..." : s);
+    }
+
+    function escapeHtml(v) {
+      return v
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    async function fetchRecords(url) {
+      const res = await fetch(url);
+      const payload = await res.json();
+      if (!res.ok) throw new Error(payload.detail || JSON.stringify(payload));
+      return payload.records || [];
+    }
+
+    async function refreshRaw() { renderTable("raw-table", await fetchRecords("/raw-inputs?limit=200")); }
+    async function refreshPO() { renderTable("po-table", await fetchRecords("/po-limits")); }
+    async function refreshCategory() { renderTable("cat-table", await fetchRecords("/category-limits")); }
+    async function refreshProcessed() { renderTable("proc-table", await fetchRecords("/records?limit=200")); }
+
+    async function refreshAll() {
+      await refreshPO();
+      await refreshCategory();
+      await refreshRaw();
+      await refreshProcessed();
+    }
+
+    document.getElementById("raw-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      await postFile("/upload-csv", document.getElementById("raw-file"), document.getElementById("raw-msg"));
+    });
+
+    document.getElementById("po-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      await postFile("/seed/po-limits", document.getElementById("po-file"), document.getElementById("po-msg"));
+    });
+
+    document.getElementById("cat-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      await postFile("/seed/category-limits", document.getElementById("cat-file"), document.getElementById("cat-msg"));
+    });
+
+    refreshAll().catch((e) => console.error(e));
+  </script>
+</body>
+</html>
