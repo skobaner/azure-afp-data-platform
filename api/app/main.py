@@ -283,6 +283,9 @@ def get_category_limits():
 def get_records(
   limit: int = Query(default=100, ge=1, le=1000),
   certification: str | None = Query(default=None),
+  project: str | None = Query(default=None),
+  cost_category: str | None = Query(default=None),
+  po: str | None = Query(default=None),
 ):
   ensure_schema_exists()
 
@@ -293,16 +296,29 @@ def get_records(
       error_message, raw_payload, processed_at
     FROM dbo.application_payments_processed
   """
-  params: tuple = (limit,)
-  where = ""
+  params: list = [limit]
+  where_parts: list[str] = []
   if certification:
-    where = " WHERE certification = %s"
-    params = (limit, certification.strip().lower())
+    where_parts.append("certification = %s")
+    params.append(certification.strip().lower())
+  if project:
+    where_parts.append("project LIKE %s")
+    params.append(f"%{project.strip()}%")
+  if cost_category:
+    where_parts.append("cost_category LIKE %s")
+    params.append(f"%{cost_category.strip()}%")
+  if po:
+    where_parts.append("po LIKE %s")
+    params.append(f"%{po.strip()}%")
+
+  where = ""
+  if where_parts:
+    where = " WHERE " + " AND ".join(where_parts)
 
   query = f"{base}{where} ORDER BY id DESC"
   with get_sql_connection() as conn:
     with conn.cursor() as cursor:
-      cursor.execute(query, params)
+      cursor.execute(query, tuple(params))
       rows = cursor.fetchall()
 
   normalized = []

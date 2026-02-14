@@ -54,6 +54,13 @@
       cursor: pointer;
     }
     button:hover { background: var(--accent-2); }
+    input[type="text"], select {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 8px;
+      background: #fff;
+      min-width: 130px;
+    }
     .msg { margin-top: 8px; min-height: 18px; font-size: 13px; }
     .ok { color: var(--ok); }
     .err { color: var(--err); }
@@ -135,7 +142,19 @@
       <section class="card">
         <div class="table-head">
           <h2>Processed Payments</h2>
-          <button onclick="refreshProcessed()">Refresh</button>
+          <div class="row">
+            <input id="filter-project" type="text" placeholder="Project" />
+            <input id="filter-category" type="text" placeholder="Category" />
+            <input id="filter-po" type="text" placeholder="PO" />
+            <select id="filter-certification">
+              <option value="">Any certification</option>
+              <option value="authorized">authorized</option>
+              <option value="partially_authorized">partially_authorized</option>
+              <option value="deauthorized">deauthorized</option>
+            </select>
+            <button onclick="refreshProcessed()">Search</button>
+            <button onclick="clearProcessedFilters()">Clear</button>
+          </div>
         </div>
         <div class="table-wrap"><table id="proc-table"></table></div>
       </section>
@@ -207,7 +226,26 @@
     async function refreshRaw() { renderTable("raw-table", await fetchRecords("/raw-inputs?limit=200")); }
     async function refreshPO() { renderTable("po-table", await fetchRecords("/po-limits")); }
     async function refreshCategory() { renderTable("cat-table", await fetchRecords("/category-limits")); }
-    async function refreshProcessed() { renderTable("proc-table", await fetchRecords("/records?limit=200")); }
+    async function refreshProcessed() {
+      const project = document.getElementById("filter-project").value.trim();
+      const category = document.getElementById("filter-category").value.trim();
+      const po = document.getElementById("filter-po").value.trim();
+      const certification = document.getElementById("filter-certification").value.trim();
+      const params = new URLSearchParams({ limit: "200" });
+      if (project) params.set("project", project);
+      if (category) params.set("cost_category", category);
+      if (po) params.set("po", po);
+      if (certification) params.set("certification", certification);
+      renderTable("proc-table", await fetchRecords(`/records?${params.toString()}`));
+    }
+
+    function clearProcessedFilters() {
+      document.getElementById("filter-project").value = "";
+      document.getElementById("filter-category").value = "";
+      document.getElementById("filter-po").value = "";
+      document.getElementById("filter-certification").value = "";
+      refreshProcessed().catch((e) => console.error(e));
+    }
 
     async function refreshAll() {
       await refreshPO();
