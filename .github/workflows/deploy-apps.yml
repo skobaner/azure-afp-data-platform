@@ -64,6 +64,39 @@ jobs:
           echo "api_app=$(terraform output -raw api_app_name)" >> "$GITHUB_OUTPUT"
           echo "function_app=$(terraform output -raw function_app_name)" >> "$GITHUB_OUTPUT"
 
+      - name: Build Function zip
+        run: |
+          rm -rf pipeline/.python_packages
+          python -m pip install --upgrade pip
+          python -m pip install -r pipeline/requirements.txt --target pipeline/.python_packages/lib/site-packages
+          cd pipeline
+          zip -r ../pipeline.zip . -x "*__pycache__*"
+
+      - name: Deploy Function zip
+        run: |
+          az functionapp deployment source config-zip \
+            --resource-group "${{ steps.tfout.outputs.resource_group }}" \
+            --name "${{ steps.tfout.outputs.function_app }}" \
+            --src pipeline.zip \
+            --timeout 1800
+
+      - name: Verify Function Discovery
+        run: |
+          for attempt in {1..30}; do
+            count=$(az functionapp function list \
+              --resource-group "${{ steps.tfout.outputs.resource_group }}" \
+              --name "${{ steps.tfout.outputs.function_app }}" \
+              --query "length(@)" -o tsv)
+            if [ "$count" -gt 0 ]; then
+              echo "Discovered $count function(s)"
+              exit 0
+            fi
+            echo "No functions discovered yet (attempt $attempt/30). Waiting..."
+            sleep 10
+          done
+          echo "Function discovery failed after deployment."
+          exit 1
+
       - name: Build API zip
         run: |
           cd api
@@ -97,36 +130,3 @@ jobs:
             echo "API deployment failed after 8 attempts."
             exit 1
           fi
-
-      - name: Build Function zip
-        run: |
-          rm -rf pipeline/.python_packages
-          python -m pip install --upgrade pip
-          python -m pip install -r pipeline/requirements.txt --target pipeline/.python_packages/lib/site-packages
-          cd pipeline
-          zip -r ../pipeline.zip . -x "*__pycache__*"
-
-      - name: Deploy Function zip
-        run: |
-          az functionapp deployment source config-zip \
-            --resource-group "${{ steps.tfout.outputs.resource_group }}" \
-            --name "${{ steps.tfout.outputs.function_app }}" \
-            --src pipeline.zip \
-            --timeout 1800
-
-      - name: Verify Function Discovery
-        run: |
-          for attempt in {1..30}; do
-            count=$(az functionapp function list \
-              --resource-group "${{ steps.tfout.outputs.resource_group }}" \
-              --name "${{ steps.tfout.outputs.function_app }}" \
-              --query "length(@)" -o tsv)
-            if [ "$count" -gt 0 ]; then
-              echo "Discovered $count function(s)"
-              exit 0
-            fi
-            echo "No functions discovered yet (attempt $attempt/30). Waiting..."
-            sleep 10
-          done
-          echo "Function discovery failed after deployment."
-          exit 1
