@@ -78,7 +78,9 @@ jobs:
           az functionapp deployment source config-zip \
             --resource-group "${{ steps.tfout.outputs.resource_group }}" \
             --name "${{ steps.tfout.outputs.function_app }}" \
-            --src pipeline.zip
+            --src pipeline.zip \
+            --build-remote true \
+            --timeout 1800
 
       - name: Verify Function Discovery
         run: |
