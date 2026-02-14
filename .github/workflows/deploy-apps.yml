@@ -62,11 +62,34 @@ jobs:
 
       - name: Deploy API zip
         run: |
-          az webapp deploy \
-            --resource-group "${{ steps.tfout.outputs.resource_group }}" \
-            --name "${{ steps.tfout.outputs.api_app }}" \
-            --src-path api.zip \
-            --type zip
+          success=0
+          for attempt in {1..3}; do
+            set +e
+            output=$(az webapp deploy \
+              --resource-group "${{ steps.tfout.outputs.resource_group }}" \
+              --name "${{ steps.tfout.outputs.api_app }}" \
+              --src-path api.zip \
+              --type zip \
+              --timeout 1800000 2>&1)
+            exit_code=$?
+            set -e
+            echo "$output"
+            if [ "$exit_code" -eq 0 ]; then
+              echo "API deployment succeeded"
+              success=1
+              break
+            fi
+            if echo "$output" | grep -q "504"; then
+              echo "Kudu timeout detected (attempt $attempt/3). Retrying..."
+              sleep 30
+              continue
+            fi
+            exit "$exit_code"
+          done
+          if [ "$success" -ne 1 ]; then
+            echo "API deployment failed after 3 attempts."
+            exit 1
+          fi
 
       - name: Build Function zip
         run: |
