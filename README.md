@@ -12,8 +12,8 @@ This project gives you a full starting point for your requirement:
 
 1. `POST /upload-csv` (FastAPI) uploads a `.csv` file to Blob container `input-data`.
 2. Blob trigger (Azure Function) runs when a new file appears.
-3. Function normalizes each CSV row (trim + uppercase + add `processed_utc`) and stores JSON payload rows into SQL table `dbo.processed_rows`.
-4. `GET /records` (FastAPI) reads processed rows from SQL.
+3. Function normalizes each CSV row (trim + uppercase + add `processed_utc`) and writes both raw + normalized payloads into SQL table `dbo.processed_rows`.
+4. `GET /records` (FastAPI) reads rows from SQL, including processing status/error.
 
 ## Project structure
 
@@ -123,6 +123,6 @@ Setup instructions:
 
 ## Notes
 
-- SQL table is auto-created by the API/function if it does not exist.
+- SQL table contract is in `sql/schema.sql` and is auto-created/updated by API + Function startup logic.
 - For production, use Key Vault + Managed Identity instead of storing SQL password in app settings.
 - Current transformation logic is in `pipeline/function_app.py` (`normalize_row`).
